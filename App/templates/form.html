@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="maindiv">
+            <div class="divitem">
+                <select name="websites" id="websites" class="inputboxes">
+                    <option>--select--</option>
+                    {%for item in website_name%}
+                    <option value="{{item.id}}">{{item.website_name}}</option>
+                    {%endfor%}
+                  </select>
+            </div>
+            <div class="divitem">
+                <input type="text" id="branch_input" class="inputboxes" name="branch_name" placeholder="Was">
+                <ul id="suggestions"  class="lilist" style="display: none;"></ul>
+            </div>
+            <div class="divitem">
+                <input type="text" id="search-bar" class="inputboxes" name="searchbar" placeholder="Wo" onkeyup="filterCities()">
+                <ul id="city-list" class="lilist hidden"></ul>
+            </div>
+            <div class="divitem">
+                <button type="button" class="inputboxes"  id="submitbtn">Submit</button>
+            </div>
+        </div>
+        
+        <div class="emaildiv" style="display: none;">
+            <p>Available Email ID's</p>
+            <ol id="emailids" style="display: none;">
+            </ol>
+        </div>
+    </form>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+
+        // function to display cities -----start-----
+        const API_URL = "https://secure.geonames.org/searchJSON?country=DE&featureClass=P&maxRows=1000&username=aryalistandsell";
+        let cities = [];
+        async function fetchCities() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch cities: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.geonames) {
+                    cities = data.geonames.map(city => city.name);
+                } else {
+                    console.error("No cities found in the API response.");
+                }
+            } catch (error) {
+                console.error("Error fetching city data:", error);
+            }
+        }
+
+        // Populate the city list dynamically
+        function populateCities(filteredCities) {
+            const cityList = document.getElementById("city-list");
+            cityList.innerHTML = "";
+
+            filteredCities.forEach(city => {
+                const li = document.createElement("li");
+                li.textContent = city;
+                li.addEventListener("click", () => selectCity(city));
+                cityList.appendChild(li);
+            });
+        }
+
+        function filterCities() {
+            const searchInput = document.getElementById("search-bar").value.toLowerCase();
+            const cityList = document.getElementById("city-list");
+
+            if (searchInput.length === 0) {
+                cityList.classList.add("hidden"); 
+                return;
+            }
+
+            const filteredCities = cities.filter(city =>
+                city.toLowerCase().includes(searchInput)
+            );
+
+            if (filteredCities.length > 0) {
+                cityList.classList.remove("hidden");
+                populateCities(filteredCities);
+            } else {
+                cityList.classList.add("hidden");
+            }
+            
+        }
+
+        function selectCity(city) {
+            const searchInput = document.getElementById("search-bar");
+            const cityList = document.getElementById("city-list");
+
+            searchInput.value = city;
+            
+            cityList.classList.add("hidden");
+        }
+        window.onload = fetchCities;
+        // function to display cities ----end----
+
+        $("#websites").change(function() {
+
+            branchname = $('#branch_input').val('')
+            cityname = $('#search-bar').val('')
+            $('.emaildiv').hide()
+
+        });
+        
+
+      
+
+        $(document).ready(function() {
+            // function to display branches ---start---
+        function showSuggestions(query) {
+            var suggestions = $('#suggestions');
+            suggestions.empty(); 
+            if (query.length > 0) {
+                $.ajax({
+                    url: '{% url "get_branches" %}',
+                    data: {
+                        'term': query
+                    },
+                    success: function(data) {
+                        if (data.length > 0) {
+                            suggestions.show();
+                            data.forEach(function(branch) {
+                                suggestions.append('<li>' + branch + '</li>');
+                            });
+                        } else {
+                            suggestions.hide();
+                        }
+                    }
+                });
+            } else {
+                suggestions.hide(); 
+            }
+        }
+
+        $('#branch_input').on('keyup', function() {
+            var query = $(this).val(); 
+            showSuggestions(query); 
+        });
+
+        $('#suggestions').on('click', 'li', function() {
+            $('#branch_input').val($(this).text());  
+            $('#suggestions').hide(); 
+        });
+
+        $(document).click(function(event) {
+            if (!$(event.target).closest('#branch_input').length) {
+                $('#suggestions').hide();
+            }
+        });
+         // function to display branches ---start---
+    });
+
+    $("#submitbtn").click(function(){
+        $('.emaildiv').hide()
+        websitename = $( "#websites" ).val()
+        branchname = $('#branch_input').val()
+        cityname = $('#search-bar').val()
+        var emails = $('#emailids')
+        emails.empty()
+
+        $.ajax({
+            url: '{% url "fetch_emails" %}',
+            data: {
+                'websitename': websitename,
+                'branchname':branchname,
+                'cityname':cityname,
+            },
+            success: function(data) {
+                console.log('data on return',data)
+                if (data.length > 0) {
+                    $('.emaildiv').show()
+                    emails.show();
+                    data.forEach(function(email) {
+                        emails.append('<li>' + email + '</li>');
+                    });
+                } else {
+                    emails.hide();
+                }
+            }
+           
+        
+        });
+
+    }); 
+    </script>
+</body>
+</html>
